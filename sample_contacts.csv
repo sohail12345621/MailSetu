@@ -1,0 +1,5 @@
+email,name,company,position,custom1
+john.doe@example.com,John Doe,Acme Corp,CEO,VIP
+jane.smith@example.com,Jane Smith,TechStart,CTO,Partner
+bob.jones@example.com,Bob Jones,CloudInc,Developer,Team
+alice.wang@example.com,Alice Wang,DataFlow,Designer,Friend
