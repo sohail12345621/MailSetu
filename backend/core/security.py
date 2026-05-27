@@ -1,22 +1,21 @@
-from passlib.context import CryptContext
+import hashlib
 import base64
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """SHA-256 fingerprint — used only as a column value, not for auth."""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return hash_password(plain) == hashed
 
 
 def encode_app_password(password: str) -> str:
-    """Simple base64 encoding for app password storage (desktop app)."""
+    """Base64-encode the raw app password for storage."""
     return base64.b64encode(password.encode()).decode()
 
 
 def decode_app_password(encoded: str) -> str:
-    """Decode app password."""
+    """Decode the stored app password."""
     return base64.b64decode(encoded.encode()).decode()
