@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MailSetu — Automated Email Sender</title>
     <meta name="description" content="MailSetu — A powerful automated email sender with bulk sending, scheduling, templates, and detailed logs." />
+    <script>
+      // Restore path from GitHub Pages 404 redirect
+      (function(l) {
+        if (l.search[1] === 'p') {
+          var decoded = l.search.slice(1).split('&').map(function(s) {
+            return s.replace(/~and~/g, '&');
+          });
+          var path = decoded[0].slice(2);
+          var query = decoded[1] ? '?' + decoded[1].slice(2) : '';
+          window.history.replaceState(null, null, l.pathname.split('/').slice(0, -path.split('/').length + 1).join('/') + '/' + path + query + l.hash);
+        }
+      }(window.location));
+    </script>
   </head>
   <body>
     <div id="root"></div>

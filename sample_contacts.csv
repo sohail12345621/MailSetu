@@ -1,5 +1,11 @@
-email,name,company,position,custom1
-john.doe@example.com,John Doe,Acme Corp,CEO,VIP
-jane.smith@example.com,Jane Smith,TechStart,CTO,Partner
-bob.jones@example.com,Bob Jones,CloudInc,Developer,Team
-alice.wang@example.com,Alice Wang,DataFlow,Designer,Friend
+email,name,company,position,custom1,custom2
+john.doe@gmail.com,John Doe,Google,Software Engineer,Pro Plan,Team A
+jane.smith@yahoo.com,Jane Smith,Microsoft,Product Manager,Basic Plan,Team B
+robert.brown@outlook.com,Robert Brown,Amazon,Data Scientist,Enterprise Plan,Team C
+emily.jones@hotmail.com,Emily Jones,Apple,UX Designer,Pro Plan,Team A
+michael.wilson@gmail.com,Michael Wilson,Meta,DevOps Engineer,Basic Plan,Team B
+sarah.davis@yahoo.com,Sarah Davis,Netflix,Marketing Lead,Enterprise Plan,Team C
+david.martinez@outlook.com,David Martinez,Tesla,Backend Developer,Pro Plan,Team A
+jessica.taylor@gmail.com,Jessica Taylor,Spotify,Frontend Developer,Basic Plan,Team B
+chris.anderson@hotmail.com,Chris Anderson,Airbnb,Project Manager,Enterprise Plan,Team C
+amanda.thomas@gmail.com,Amanda Thomas,Uber,QA Engineer,Pro Plan,Team A
