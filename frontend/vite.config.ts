@@ -17,5 +17,13 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/auth': 'http://localhost:8000',
+      '/emails': 'http://localhost:8000',
+      '/templates': 'http://localhost:8000',
+      '/schedule': 'http://localhost:8000',
+      '/uploads': 'http://localhost:8000',
+      '/health': 'http://localhost:8000',
+    },
   },
 })

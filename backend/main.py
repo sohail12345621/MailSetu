@@ -59,6 +59,21 @@ async def health():
     return {"status": "ok", "version": "1.0.0"}
 
 
+# Serve built React frontend (single-service deployment)
+# Must be registered AFTER all API routes
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(FRONTEND_DIST):
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Catch-all: serve index.html for all non-API routes (React Router support)."""
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

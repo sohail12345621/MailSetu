@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: mailsetu
+    runtime: python
+    buildCommand: |
+      pip install -r backend/requirements.txt
+      cd frontend && npm ci && npm run build
+    startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./database/mailsetu.db
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 20
+      - key: MAX_RETRIES
+        value: 3
+      - key: RETRY_DELAY
+        value: 2
+      - key: LOG_LEVEL
+        value: INFO
