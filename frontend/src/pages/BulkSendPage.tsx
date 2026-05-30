@@ -1,38 +1,63 @@
-import React, { useState, useRef } from 'react'
-import { parseCsv, sendBulk, uploadFiles } from '../lib/api'
+import React, { useState } from 'react'
+import { sendBulk, uploadFiles } from '../lib/api'
 import RichTextEditor from '../components/RichTextEditor'
 import DropZone from '../components/DropZone'
-import { Upload, Send, Loader2, CheckCircle2, XCircle, Info } from 'lucide-react'
+import { Send, Loader2, CheckCircle2, XCircle, Info, Plus, Trash2, UserPlus } from 'lucide-react'
 import { statusBadgeClass } from '../lib/utils'
 import toast from 'react-hot-toast'
 
+interface ContactRow {
+  email: string
+  name: string
+  company: string
+}
+
+const emptyRow = (): ContactRow => ({ email: '', name: '', company: '' })
+
 export default function BulkSendPage() {
-  const [contacts, setContacts] = useState<any[]>([])
+  const [rows, setRows] = useState<ContactRow[]>([emptyRow()])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState<any[]>([])
-  const [csvLoaded, setCsvLoaded] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
 
-  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const r = await parseCsv(file)
-      setContacts(r.data.contacts)
-      setCsvLoaded(true)
-      toast.success(`Loaded ${r.data.count} contacts`)
-    } catch {
-      toast.error('Failed to parse CSV. Check format.')
-    }
+  /* ── row helpers ── */
+  const updateRow = (i: number, field: keyof ContactRow, val: string) =>
+    setRows(r => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row))
+
+  const addRow = () => setRows(r => [...r, emptyRow()])
+
+  const removeRow = (i: number) =>
+    setRows(r => r.length === 1 ? [emptyRow()] : r.filter((_, idx) => idx !== i))
+
+  /* paste multiple emails at once into the email field */
+  const handleEmailPaste = (i: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text')
+    const parts = pasted.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean)
+    if (parts.length <= 1) return          // single address → normal paste
+    e.preventDefault()
+    setRows(prev => {
+      const next = [...prev]
+      next[i] = { ...next[i], email: parts[0] }
+      const newRows: ContactRow[] = parts.slice(1).map(em => ({ email: em, name: '', company: '' }))
+      next.splice(i + 1, 0, ...newRows)
+      return next
+    })
+    toast.success(`Added ${parts.length} emails`)
   }
 
+  /* ── send ── */
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!contacts.length) { toast.error('Upload a CSV first'); return }
+    const contacts = rows.filter(r => r.email.trim())
+    if (!contacts.length) { toast.error('Add at least one email address'); return }
+
+    // basic email validation
+    const invalid = contacts.find(c => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim()))
+    if (invalid) { toast.error(`Invalid email: ${invalid.email}`); return }
+
     setSending(true)
     setProgress(0)
     setResults([])
@@ -42,7 +67,6 @@ export default function BulkSendPage() {
         const up = await uploadFiles(files)
         attachment_paths = up.data.files.map((f: any) => f.path)
       }
-      // Simulate progress (real bulk sends are server-side)
       const interval = setInterval(() => setProgress(p => Math.min(p + 5, 90)), 300)
       const r = await sendBulk({ contacts, subject, html_body: body, attachment_paths })
       clearInterval(interval)
@@ -56,81 +80,156 @@ export default function BulkSendPage() {
     }
   }
 
-  const columns = contacts.length > 0 ? Object.keys(contacts[0]) : []
+  const validCount = rows.filter(r => r.email.trim()).length
 
   return (
-    <div className="animate-fade-in" style={{ padding: 32, maxWidth: 900 }}>
+    <div className="animate-fade-in" style={{ padding: 32, maxWidth: 960 }}>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Bulk Email Sender</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>Upload a CSV and send personalized emails to hundreds of contacts</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
+          Enter email addresses below and send personalized emails to all of them at once
+        </p>
       </div>
 
       {/* Variable hint */}
       <div style={{ padding: '12px 16px', background: 'rgba(96,180,240,0.08)', border: '1px solid rgba(96,180,240,0.2)', borderRadius: 10, marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <Info size={15} color="var(--info)" style={{ flexShrink: 0, marginTop: 1 }} />
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-          Use <code style={{ background: 'var(--bg-hover)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontSize: 12 }}>{'{{name}}'}</code> <code style={{ background: 'var(--bg-hover)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontSize: 12 }}>{'{{company}}'}</code> etc. in subject/body to personalize using CSV columns.
+          Use <code style={{ background: 'var(--bg-hover)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontSize: 12 }}>{'{{name}}'}</code>{' '}
+          <code style={{ background: 'var(--bg-hover)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontSize: 12 }}>{'{{company}}'}</code>{' '}
+          in subject / body to personalize each email. You can also <strong>paste multiple emails</strong> (comma or newline separated) into any email field.
         </p>
       </div>
 
-      <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* CSV Upload */}
+      <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+        {/* ── Recipient table ── */}
         <div>
-          <label className="label">Contact List (CSV)</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <label className="label" style={{ margin: 0 }}>
+              Recipients&nbsp;
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}>
+                ({validCount} email{validCount !== 1 ? 's' : ''} ready)
+              </span>
+            </label>
+            <button type="button" className="btn-secondary" onClick={addRow} style={{ gap: 6, padding: '6px 14px', fontSize: 13 }}>
+              <UserPlus size={14} /> Add Row
+            </button>
+          </div>
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {/* header */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 160px 160px 36px',
+              gap: 0,
+              background: 'var(--bg-hover)',
+              borderBottom: '1px solid var(--border)',
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}>
+              <span>Email Address *</span>
+              <span>Name</span>
+              <span>Company</span>
+              <span />
+            </div>
+
+            {/* rows */}
+            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+              {rows.map((row, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 160px 160px 36px',
+                    gap: 0,
+                    borderBottom: '1px solid var(--border)',
+                    alignItems: 'center',
+                    padding: '6px 10px',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
+                >
+                  <input
+                    className="input"
+                    type="email"
+                    placeholder="recipient@example.com"
+                    value={row.email}
+                    onChange={e => updateRow(i, 'email', e.target.value)}
+                    onPaste={e => handleEmailPaste(i, e)}
+                    style={{ margin: '0 4px 0 0', fontSize: 13, padding: '6px 10px', border: 'none', background: 'transparent', outline: 'none', boxShadow: 'none' }}
+                  />
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Name"
+                    value={row.name}
+                    onChange={e => updateRow(i, 'name', e.target.value)}
+                    style={{ margin: '0 4px', fontSize: 13, padding: '6px 10px', border: 'none', background: 'transparent', outline: 'none', boxShadow: 'none' }}
+                  />
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Company"
+                    value={row.company}
+                    onChange={e => updateRow(i, 'company', e.target.value)}
+                    style={{ margin: '0 4px', fontSize: 13, padding: '6px 10px', border: 'none', background: 'transparent', outline: 'none', boxShadow: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRow(i)}
+                    title="Remove row"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 6 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* add row shortcut */}
             <button
               type="button"
-              className="btn-secondary"
-              onClick={() => fileRef.current?.click()}
+              onClick={addRow}
+              style={{
+                width: '100%', background: 'none', border: 'none', borderTop: '1px dashed var(--border)',
+                padding: '9px 14px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13,
+                display: 'flex', alignItems: 'center', gap: 6, transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
             >
-              <Upload size={15} /> Upload CSV
+              <Plus size={13} /> Add another recipient
             </button>
-            {csvLoaded && (
-              <span style={{ fontSize: 13, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <CheckCircle2 size={14} /> {contacts.length} contacts loaded
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Preview table */}
-        {contacts.length > 0 && (
-          <div className="card" style={{ padding: 0, overflow: 'auto', maxHeight: 220 }}>
-            <table className="data-table">
-              <thead>
-                <tr>{columns.map(c => <th key={c}>{c}</th>)}</tr>
-              </thead>
-              <tbody>
-                {contacts.slice(0, 5).map((row, i) => (
-                  <tr key={i}>{columns.map(c => <td key={c}>{row[c]}</td>)}</tr>
-                ))}
-              </tbody>
-            </table>
-            {contacts.length > 5 && (
-              <p style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
-                …and {contacts.length - 5} more rows
-              </p>
-            )}
-          </div>
-        )}
-
+        {/* Subject */}
         <div>
           <label className="label">Subject <span style={{ color: 'var(--error)' }}>*</span></label>
           <input id="bulk-subject" className="input" placeholder="Hello {{name}}, here's your update…" value={subject} onChange={e => setSubject(e.target.value)} required />
         </div>
 
+        {/* Body */}
         <div>
           <label className="label">Email Body</label>
           <RichTextEditor content={body} onChange={setBody} placeholder="Dear {{name}}, ..." />
         </div>
 
+        {/* Attachments */}
         <div>
           <label className="label">Attachments (sent to all)</label>
           <DropZone files={files} onChange={setFiles} />
         </div>
 
-        {/* Progress bar */}
+        {/* Progress */}
         {sending && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -145,7 +244,7 @@ export default function BulkSendPage() {
 
         <button id="bulk-send-btn" type="submit" className="btn-primary" disabled={sending} style={{ alignSelf: 'flex-start', padding: '12px 28px' }}>
           {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          {sending ? 'Sending…' : `Send to ${contacts.length || '…'} Contacts`}
+          {sending ? 'Sending…' : `Send to ${validCount || '…'} Contact${validCount !== 1 ? 's' : ''}`}
         </button>
       </form>
 
